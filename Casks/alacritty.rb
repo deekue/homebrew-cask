@@ -1,6 +1,6 @@
 cask 'alacritty' do
-  version '0.4.3'
-  sha256 '89f6acc094cece79734be3e56e0cdcf1d5525fdba3429b979e744e36418577fb'
+  version '0.4.?'
+  sha256 '???'
 
   url "https://github.com/alacritty/alacritty/releases/download/v#{version}/Alacritty-v#{version}.dmg"
   appcast 'https://github.com/alacritty/alacritty/releases.atom'
@@ -8,14 +8,27 @@ cask 'alacritty' do
   homepage 'https://github.com/alacritty/alacritty/'
 
   app 'Alacritty.app'
-  binary "#{appdir}/Alacritty.app/Contents/MacOS/alacritty"
+  # shim script (https://github.com/Homebrew/homebrew-cask/issues/18809)
+  shimscript = "#{staged_path}/alacritty.wrapper.sh"
+  binary shimscript, target: 'alacritty'
+
+  preflight do
+    IO.write shimscript, <<~EOS
+      #!/bin/sh
+      exec '#{appdir}/Alacritty.app/Contents/MacOS/alacritty' "$@"
+    EOS
+  end
 
   postflight do
-    system_command 'gzip -c #{appdir}/Alacritty.app/Contents/Resources/alacritty.man > #{HOMEBREW_PREFIX}/share/man/man1/alacritty.1.gz'
-    system_command 'tic -xe alacritty,alacritty-direct #{appdir}/Alacritty.app/Contents/Resources/alacritty.info'
-    FileUtils.ln_sf('#{appdir}/Alacirtty.app/Contents/Resources/completitions/alacritty.bash', '#{HOMEBREW_PREFIX}/etc/bash_completion.d/alacritty')
-    FileUtils.ln_sf('#{appdir}/Alacirtty.app/Contents/Resources/completitions/_alacritty', '#{HOMEBREW_PREFIX}/share/zsh/site-functions/_alacritty')
-    FileUtils.ln_sf('#{appdir}/Alacirtty.app/Contents/Resources/completitions/alacritty.fish', '#{HOMEBREW_PREFIX}#{HOMEBREW_PREFIX}/share/fish/vendor_completions.d/alacritty')
+    home_terminfo_dir = '#{ENV['HOME']}/.terminfo/61'
+    app_extras_dir = '#{appdir}/Alacritty.app/Contents/Resources'
+    FileUtils.mkdir_p(home_terminfo_dir)
+    FileUtils.ln_sf('#{app_extras_dir}/61/alacritty', '#{home_terminfo_dir}/alacritty')
+    FileUtils.ln_sf('#{app_extras_dir}/61/alacritty-direct', '#{home_terminfo_dir}/alacritty-direct')
+    FileUtils.ln_sf('#{app_extras_dir}/completitions/alacritty.bash', '#{HOMEBREW_PREFIX}/etc/bash_completion.d/alacritty')
+    FileUtils.ln_sf('#{app_extras_dir}/completitions/_alacritty', '#{HOMEBREW_PREFIX}/share/zsh/site-functions/_alacritty')
+    FileUtils.ln_sf('#{app_extras_dir}/completitions/alacritty.fish', '#{HOMEBREW_PREFIX}#{HOMEBREW_PREFIX}/share/fish/vendor_completions.d/alacritty')
+    FileUtils.ln_sf('#{app_extras_dir}/alacritty.1.gz', '#{HOMEBREW_PREFIX}/share/man/man1/alacritty.1.gz')
   end
 
   uninstall delete: [
